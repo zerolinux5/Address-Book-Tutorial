@@ -28,15 +28,17 @@
     } else{ //ABAddressBookGetAuthorizationStatus() == kABAuthorizationStatusNotDetermined
         //3
         ABAddressBookRequestAccessWithCompletion(ABAddressBookCreateWithOptions(NULL, nil), ^(bool granted, CFErrorRef error) {
-            if (!granted){
-                //4
-                UIAlertView *cantAddContactAlert = [[UIAlertView alloc] initWithTitle: @"Cannot Add Contact" message: @"You must give the app permission to add the contact first." delegate:nil cancelButtonTitle: @"OK" otherButtonTitles: nil];
-                [cantAddContactAlert show];
-                return;
-            }
-            //5
-            [self addPetToContacts:sender];
-        });
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (!granted){
+                    //4
+                    UIAlertView *cantAddContactAlert = [[UIAlertView alloc] initWithTitle: @"Cannot Add Contact" message: @"You must give the app permission to add the contact first." delegate:nil cancelButtonTitle: @"OK" otherButtonTitles: nil];
+                    [cantAddContactAlert show];
+                    return;
+                }
+                    //5
+                    [self addPetToContacts:sender];
+                });
+            });
     }
 }
 
@@ -76,7 +78,21 @@
     ABRecordSetValue(pet, kABPersonPhoneProperty, phoneNumbers, nil);
     ABPersonSetImageData(pet, (__bridge CFDataRef)petImageData, nil);
     ABAddressBookAddRecord(addressBookRef, pet, nil);
+    NSArray *allContacts = (__bridge NSArray *)ABAddressBookCopyArrayOfAllPeople(addressBookRef);
+    for (id record in allContacts){
+        ABRecordRef thisContact = (__bridge ABRecordRef)record;
+        if (CFStringCompare(ABRecordCopyCompositeName(thisContact),
+                            ABRecordCopyCompositeName(pet), 0) == kCFCompareEqualTo){
+            //The contact already exists!
+            UIAlertView *contactExistsAlert = [[UIAlertView alloc]initWithTitle:[NSString stringWithFormat:@"There can only be one %@", petFirstName] message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
+            [contactExistsAlert show];
+            return;
+        }
+    }
+    
     ABAddressBookSave(addressBookRef, nil);
+    UIAlertView *contactAddedAlert = [[UIAlertView alloc]initWithTitle:@"Contact Added" message:nil delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
+    [contactAddedAlert show];
     
 }
 
